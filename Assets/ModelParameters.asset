@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d73dc74df5db674bb52558241e56e50, type: 3}
+  m_Name: ModelParameters
+  m_EditorClassIdentifier: 
+  visualScale: 1000
+  cathodeRadius: 0.0007142857
+  anodeRadius: 0.001785714
+  anodeVoltage: 5
+  solenoidCurrent: 1.04
+  solenoidTurns: 550
+  solenoidLength: 0.05
+  solenoidDiameter: 0.04
+  magneticFieldDirection: {x: 0, y: -1, z: 0}
+  magneticInduction: 0
+  autoCalculateMagneticField: 1
+  maxSteps: 200000
+  mu0: 0.000001256637
+  electronCharge: 1.6021766e-19
+  electronMass: 9.109383e-31
+  initialAnodeCurrent: 50
