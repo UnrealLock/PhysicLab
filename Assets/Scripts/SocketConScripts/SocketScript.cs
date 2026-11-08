@@ -15,8 +15,8 @@ public class SocketScript : MonoBehaviour, IClickable
 
     private void Awake()
     {
-        // Запоминаем свою подсветку до появления
-        // новых вложенных коннекторов.
+        // Cache this socket's outline before
+        // any new nested connectors are created.
         outline = GetComponentInChildren<Outline>();
     }
 
@@ -28,7 +28,7 @@ public class SocketScript : MonoBehaviour, IClickable
 
     public void CancelSelection()
     {
-        // Не сбрасываем состояние существующих соединений.
+        // Do not reset the state of existing connections.
         isBeingMatched = false;
     }
 
@@ -59,8 +59,8 @@ public class SocketScript : MonoBehaviour, IClickable
         if (outline == null)
             return;
 
-        // isMatched здесь не проверяем:
-        // одно логическое гнездо может иметь несколько проводов.
+        // Do not check isMatched here:
+        // a single logical socket can have multiple wires.
         if (isBeingMatched || outline.IsOutlining)
             return;
 
@@ -76,7 +76,7 @@ public class SocketScript : MonoBehaviour, IClickable
         if (socketSystem == null)
             return;
 
-        // Сначала система должна принять выбор.
+        // The system must accept the selection first.
         if (!socketSystem.RegisterSocket(gameObject))
             return;
 

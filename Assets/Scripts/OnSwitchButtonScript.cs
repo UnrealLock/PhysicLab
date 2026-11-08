@@ -101,7 +101,7 @@ public class OnSwitchButtonScript : MonoBehaviour, IClickable
         // Show message if sockets are not all matched
         else
         {
-           StartCoroutine(ShowMessage());
+            StartCoroutine(ShowMessage());
         }
     }
 

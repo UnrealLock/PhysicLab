@@ -56,7 +56,7 @@ public class SocketsSystemScript : MonoBehaviour
         "9-10;" +
         "11-12";
 
-    // Один полностью допустимый вариант сборки.
+    // A single complete valid circuit configuration.
     private sealed class CircuitVariant
     {
         public CircuitType Type { get; }
@@ -71,7 +71,7 @@ public class SocketsSystemScript : MonoBehaviour
         }
     }
 
-    // Все допустимые полные варианты обеих схем.
+    // All valid complete configurations for both circuits.
     private readonly List<CircuitVariant> circuitVariants = new();
 
 
@@ -136,12 +136,12 @@ public class SocketsSystemScript : MonoBehaviour
     }
 
     /// <summary>
-    /// Преобразует группы условий в полные варианты сборки.
-    /// Поддерживает тот же формат, что и исходный скрипт:
-    /// ';' — обязательные группы,
-    /// '|' — альтернативы,
-    /// '&' — соединения внутри альтернативы.
-    /// Скобки используются только для оформления.
+    /// Converts condition groups into complete circuit configurations.
+    /// Supports the same format as the original script:
+    /// ';' separates required groups,
+    /// '|' separates alternatives,
+    /// '&' separates connections within an alternative.
+    /// Parentheses are used only for formatting.
     /// </summary>
     private void AddCircuitVariants(string text, CircuitType type)
     {
@@ -180,10 +180,7 @@ public class SocketsSystemScript : MonoBehaviour
                         b < 0 ||
                         a == b)
                     {
-                        Debug.LogError(
-                            $"Ошибка в условиях схемы {type}: {pairText}");
-
-                        // Не регистрируем схему с повреждёнными условиями.
+                        // Do not register a circuit with invalid conditions.
                         return;
                     }
 
@@ -193,7 +190,7 @@ public class SocketsSystemScript : MonoBehaviour
                 groupVariants.Add(connections);
             }
 
-            // Комбинируем уже обработанные группы с текущей.
+            // Combine the previously processed groups with the current group.
             var expandedBuilds = new List<HashSet<(int, int)>>();
 
             foreach (var build in builds)
@@ -273,40 +270,123 @@ public class SocketsSystemScript : MonoBehaviour
     /// <summary>
     /// Automatically creates all valid connections from the socket dictionary
     /// </summary>
-    public void AutoCreateAllConnections()
+    // Assign to the first UI button.
+    public void AutoCreateForwardConnections()
     {
-        foreach (var pair in socketDictionary)
+        AutoCreateCircuit(CircuitType.Forward);
+    }
+
+    // Assign to the second UI button.
+    public void AutoCreateReverseConnections()
+    {
+        AutoCreateCircuit(CircuitType.Reverse);
+    }
+
+    private void AutoCreateCircuit(CircuitType type)
+    {
+        if (sockets == null || matchingSockets == null)
         {
-            int startID = pair.Key;
+            return;
+        }
 
-            if (startID < 0 || startID >= sockets.Length) continue;
-            if (sockets[startID] == null) continue;
+        if (connectorPrefab == null || wirePrefab == null)
+        {
+            return;
+        }
 
-            foreach (var endID in pair.Value)
+        // The prefab must have an available socket
+        // to allow connectors to be stacked.
+        if (connectorPrefab.GetComponentInChildren<SocketScript>() == null)
+        {
+            return;
+        }
+
+        // Read the conditions again from the current Inspector fields.
+        ParseLogicalConditions();
+        ExtractConnectionsFromLogicalConditions();
+
+        // Select one complete configuration for the requested circuit type.
+        CircuitVariant variant = circuitVariants
+            .FirstOrDefault(v => v.Type == type);
+
+        if (variant == null)
+        {
+            return;
+        }
+
+        // Check that all required panel sockets exist before resetting the circuit.
+        foreach (var connection in variant.Connections)
+        {
+            int a = connection.Item1;
+            int b = connection.Item2;
+
+            if (a < 0 || a >= sockets.Length ||
+                b < 0 || b >= sockets.Length ||
+                sockets[a] == null || sockets[b] == null)
             {
-                if (endID <= startID) continue;
-                if (endID < 0 || endID >= sockets.Length) continue;
-                if (sockets[endID] == null) continue;
-
-                var connectionKey = NormalizePair(startID, endID);
-
-                if (createdConnections.Contains(connectionKey))
-                    continue;
-
-                // Check if connection is allowed by logical conditions
-                if (!IsConnectionAllowed(connectionKey))
-                    continue;
-
-                GameObject startSocket = sockets[startID];
-                GameObject endSocket = sockets[endID];
-
-                CreateWireConnection(startSocket, endSocket);
-                createdConnections.Add(connectionKey);
-
-                startSocket.GetComponent<SocketScript>().ApplyMatching();
-                endSocket.GetComponent<SocketScript>().ApplyMatching();
+                return;
             }
         }
+
+        ResetAllConnections();
+
+        // ID -> physical socket for the next connector.
+        // After each insertion, replace it with the socket
+        // inside the newly created connector.
+        var nextSockets = new Dictionary<int, GameObject>();
+
+        // Use a fixed order to make automatic assembly repeatable.
+        var orderedConnections = variant.Connections
+            .OrderBy(c => c.Item1)
+            .ThenBy(c => c.Item2);
+
+        foreach (var connection in orderedConnections)
+        {
+            int a = connection.Item1;
+            int b = connection.Item2;
+
+            GameObject startSocket =
+                nextSockets.TryGetValue(a, out var nextA)
+                    ? nextA
+                    : sockets[a];
+
+            GameObject endSocket =
+                nextSockets.TryGetValue(b, out var nextB)
+                    ? nextB
+                    : sockets[b];
+
+            var (startConnector, endConnector) =
+                CreateWireConnection(startSocket, endSocket);
+
+            SocketScript startNext =
+                startConnector.GetComponentInChildren<SocketScript>();
+
+            SocketScript endNext =
+                endConnector.GetComponentInChildren<SocketScript>();
+
+            if (startNext == null || endNext == null)
+            {
+                ResetAllConnections();
+                return;
+            }
+
+            createdConnections.Add(NormalizePair(a, b));
+
+            // Mark the used physical sockets as matched.
+            startSocket.GetComponent<SocketScript>().ApplyMatching();
+            endSocket.GetComponent<SocketScript>().ApplyMatching();
+
+            // Also mark the main panel sockets as matched.
+            sockets[a].GetComponent<SocketScript>().ApplyMatching();
+            sockets[b].GetComponent<SocketScript>().ApplyMatching();
+
+            // Connect the next wire with this ID
+            // to the socket on top of the installed connector.
+            nextSockets[a] = startNext.gameObject;
+            nextSockets[b] = endNext.gameObject;
+        }
+
+        IsAllMatched = CheckLogicalConditionsMet();
     }
 
     /// <summary>
@@ -330,8 +410,8 @@ public class SocketsSystemScript : MonoBehaviour
         if (matchingSockets.Count >= 2)
             return false;
 
-        // Нельзя выбрать два физических объекта одного
-        // логического гнезда для соединения друг с другом.
+        // Two physical objects representing the same logical socket
+        // cannot be selected for a connection to each other.
         foreach (var selected in matchingSockets)
         {
             if (selected == null)
@@ -341,7 +421,7 @@ public class SocketsSystemScript : MonoBehaviour
                 return false;
         }
 
-        // Сохраняем именно выбранный объект, а не только его ID.
+        // Store the actual selected object, not just its ID.
         matchingSockets.Add(socket);
         return true;
     }
@@ -447,7 +527,7 @@ public class SocketsSystemScript : MonoBehaviour
         var startScript = startSocket.GetComponent<SocketScript>();
         var endScript = endSocket.GetComponent<SocketScript>();
 
-        // Получаем подсветку ДО создания новых дочерних объектов.
+        // Get the outlines BEFORE creating any new child objects.
         Outline startOutline = startSocket.GetComponentInChildren<Outline>();
         Outline endOutline = endSocket.GetComponentInChildren<Outline>();
 
@@ -468,7 +548,7 @@ public class SocketsSystemScript : MonoBehaviour
 
         if (canConnect)
         {
-            // Точки установки — выбранные физические гнёзда.
+            // Use the selected physical sockets as insertion points.
             CreateWireConnection(startSocket, endSocket);
             createdConnections.Add(pairKey);
 
@@ -478,14 +558,14 @@ public class SocketsSystemScript : MonoBehaviour
             startScript.ApplyMatching();
             endScript.ApplyMatching();
 
-            // Отмечаем также основные гнёзда панели.
+            // Also mark the main panel sockets as matched.
             sockets[idA].GetComponent<SocketScript>().ApplyMatching();
             sockets[idB].GetComponent<SocketScript>().ApplyMatching();
         }
         else
         {
-            // Отменяем только выбор.
-            // Уже существующие соединения остаются действительными.
+            // Cancel only the selection.
+            // Existing connections remain valid.
             startScript.CancelSelection();
             endScript.CancelSelection();
 
@@ -513,7 +593,8 @@ public class SocketsSystemScript : MonoBehaviour
     /// <summary>
     /// Creates a complete wire connection between two sockets
     /// </summary>
-    private void CreateWireConnection(GameObject startSocket, GameObject endSocket)
+    private (GameObject startConnector, GameObject endConnector)
+    CreateWireConnection(GameObject startSocket, GameObject endSocket)
     {
         GameObject startConnector = CreateConnector(startSocket);
         GameObject endConnector = CreateConnector(endSocket);
@@ -523,6 +604,8 @@ public class SocketsSystemScript : MonoBehaviour
 
         GameObject wire = CreateWireObject(startSocket, endSocket);
         StartWireRender(wire, startConnector, endConnector);
+
+        return (startConnector, endConnector);
     }
 
     /// <summary>
