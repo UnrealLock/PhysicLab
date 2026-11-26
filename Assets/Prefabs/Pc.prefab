@@ -1138,7 +1138,7 @@ GameObject:
   - component: {fileID: 1433384595387823135}
   - component: {fileID: 1692338686099834194}
   m_Layer: 0
-  m_Name: Screen
+  m_Name: PcScreen
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1437,6 +1437,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1656642583110819666, guid: c01130cfd5b15d3489e322212a27b5cf, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3289304337086304367, guid: c01130cfd5b15d3489e322212a27b5cf, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
@@ -1499,7 +1503,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9168252272047311660, guid: c01130cfd5b15d3489e322212a27b5cf, type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 7246801482515844740, guid: c01130cfd5b15d3489e322212a27b5cf, type: 3}

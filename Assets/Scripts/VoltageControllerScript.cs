@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -17,20 +18,17 @@ public class VoltageControllerScript : MonoBehaviour, IClickable
     {
         
     }
+
     public void OnLeftClick()
     {
-        // get contraption zone data
-        var contraptionZoneData = GameObject.FindGameObjectWithTag("ContraptionZone").GetComponent<ContraptionZoneData>();
-
         if (contraptionZoneData.IsSystemOn)
         {
             // increase voltage
             contraptionZoneData.Voltage = System.Math.Round(contraptionZoneData.Voltage + VoltageChangeValue, 2);
             // wrap around if exceeds max
-            if (!contraptionZoneData.IsReverse && contraptionZoneData.Voltage > 0.3)
-                contraptionZoneData.Voltage = 0.0;
-            if (contraptionZoneData.IsReverse && contraptionZoneData.Voltage > 0)
-                contraptionZoneData.Voltage = -0.3;
+            var (min, max) = GetMinMax();
+            if (contraptionZoneData.Voltage > max)
+                contraptionZoneData.Voltage = min;
             // start cooldown
             StartCoroutine(Cooldown(0.2f));
         }
@@ -39,18 +37,14 @@ public class VoltageControllerScript : MonoBehaviour, IClickable
     public void OnRightClick()
     {
         // get contraption zone data
-        var contraptionZoneData = GameObject.FindGameObjectWithTag("ContraptionZone").GetComponent<ContraptionZoneData>();
         if (contraptionZoneData.IsSystemOn)
         {
             // decrease voltage
-            if (contraptionZoneData.IsSystemOn)
-                contraptionZoneData.Voltage = System.Math.Round(contraptionZoneData.Voltage - VoltageChangeValue, 2);
+            contraptionZoneData.Voltage = System.Math.Round(contraptionZoneData.Voltage - VoltageChangeValue, 2);
             // wrap around if below min
-            if (!contraptionZoneData.IsReverse && contraptionZoneData.Voltage < 0.0)
-                contraptionZoneData.Voltage = 0.3;
-            if (contraptionZoneData.IsReverse && contraptionZoneData.Voltage < -0.3)
-                contraptionZoneData.Voltage = 0;
-
+            var (min, max) = GetMinMax();
+            if (contraptionZoneData.Voltage < min)
+                contraptionZoneData.Voltage = max;
             // start cooldown
             StartCoroutine(Cooldown(0.2f));
         }
@@ -60,5 +54,16 @@ public class VoltageControllerScript : MonoBehaviour, IClickable
     {
         // Set cooldown flag and wait for the specified time
         yield return new WaitForSeconds(cooldownTimer);
+    }
+
+    Tuple<double, double> GetMinMax() {
+        switch (contraptionZoneData.currentConnection)
+        {
+            case CircuitType.Forward:
+                return Tuple.Create(0.0, 0.3);
+            case CircuitType.Reverse:
+                return Tuple.Create(-0.3, 0.0);
+        }
+        return Tuple.Create(double.MinValue, double.MaxValue);
     }
 }

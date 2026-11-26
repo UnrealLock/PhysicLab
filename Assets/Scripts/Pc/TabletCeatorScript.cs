@@ -100,7 +100,7 @@ public class TabletCeatorScript : MonoBehaviour
             derivativesList.Add(tabletDataRows[i][2] / maxDerivative);
         }
         //Redraw graph with new data
-        secondGraphCreatorScript.RedrawGraph(amperagesList, derivativesList);
+        //secondGraphCreatorScript.RedrawGraph(amperagesList, derivativesList);
     }
 
     public void FillTabletTestData()

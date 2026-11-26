@@ -3,14 +3,11 @@ using UnityEngine;
 public class ContraptionZoneData : MonoBehaviour
 {
     // Flag to indicate if the system is on
-    //[SerializeField] private OnSwitchButtonScript onSwitchCoilData;
-    //[SerializeField] private OnSwitchButtonScript onSwitchLampData;
     [SerializeField] private OnSwitchButtonScript onSwitchSystemData;
-
-    //public bool IsLampOn => onSwitchLampData != null && onSwitchLampData.IsActivated;
-    //public bool IsCoilOn => onSwitchCoilData != null && onSwitchCoilData.IsActivated;
+    [SerializeField] private SocketsSystemScript socketsSystemScript;
     public bool IsSystemOn => onSwitchSystemData != null && onSwitchSystemData.IsActivated;
-    [SerializeField] public bool IsReverse = false;
+    [SerializeField] public bool IsFurnaceOn = false;
+    public CircuitType currentConnection => socketsSystemScript.AssembledCircuit;
 
     // Values of the contraption
     public double Voltage = 0.00;
@@ -31,7 +28,8 @@ public class ContraptionZoneData : MonoBehaviour
 
     private void Update()
     {
-        if ((IsReverse && Voltage > 0) || (!IsReverse && Voltage < 0))
+        if ((currentConnection == CircuitType.Reverse && Voltage > 0) 
+            || (currentConnection == CircuitType.Forward && Voltage < 0))
             Voltage = 0.0;
     }
 }

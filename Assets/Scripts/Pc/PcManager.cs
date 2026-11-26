@@ -41,7 +41,7 @@ public class PcManager : MonoBehaviour
         // Set the camera for the app movement script
         app.GetComponent<MoveAppScreen>().MainCamera = PcCamera;
         // Parent the app to the screen and set its position and scale
-        var screen = GameObject.Find("Screen");
+        var screen = GameObject.Find("PcScreen");
         app.transform.SetParent(screen.transform);
         app.transform.localPosition = new Vector3(0, 0, -0.15f);
         app.transform.localScale = new Vector3(60, 60, 1);

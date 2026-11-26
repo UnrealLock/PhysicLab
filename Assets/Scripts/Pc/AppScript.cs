@@ -16,12 +16,15 @@ public class AppScript : MonoBehaviour
     // Saved voltages for graphing
     List<double> savedVoltages;
     // User inputs
-    float chargeInput;
+    float tempInput;
     int powerInput;
+    // Temperature
+    TextMeshProUGUI tempField;
+    int heatAmount = 0;
+    int timer = 0;
 
     //For Tasks
-    public bool IsChargeCorrect = false;
-    public bool IsSpeedCorrect = false;
+    public bool IsTempCorrect = false;
 
     // Start is called before the first frame update
     void Start()
@@ -32,6 +35,8 @@ public class AppScript : MonoBehaviour
         resultPage = gameObject.transform.GetChild(2).gameObject;
         graphCreatorScript = gameObject.transform.GetComponent<GraphCreatorScript>();
         savedVoltages = new List<double>();
+        tempField = resultPage.transform.GetChild(1).GetChild(1).GetComponent<TextMeshProUGUI>();
+        tempField.text = NormaliseValue((float)contraptionZoneData.RoomTemperature + 273, 1);
     }
 
     // Update is called once per frame
@@ -39,7 +44,33 @@ public class AppScript : MonoBehaviour
     {
         // Monitor data and check user inputs
         MonitoreVoltage();
-        //CheckDataCorrect();
+        CheckDataCorrect();
+    }
+
+    void FixedUpdate()
+    {
+        ++timer;
+        //Debug.Log(timer);
+        if (heatAmount < 20 && contraptionZoneData.IsFurnaceOn)
+        {
+            if (timer > 3000)
+            {
+                tempField.text = NormaliseValue(float.Parse(tempField.text) + 2, 1);
+                heatAmount += 2;
+                timer = 0;
+            }
+        }
+        else if (heatAmount > 0 && !contraptionZoneData.IsFurnaceOn)
+        {
+            if (timer > 3000)
+            {
+                tempField.text = NormaliseValue(float.Parse(tempField.text) - 1, 1);
+                --heatAmount;
+                timer = 0;
+            }
+        }
+        else
+            timer = 0;
     }
 
     void MonitoreVoltage()
@@ -70,10 +101,10 @@ public class AppScript : MonoBehaviour
         // Calculate lamp amperage value based on the formula
         var mn = Math.Exp((-1 * contraptionZoneData.PermZone * ContraptionZoneData.elCharge)
             / (ContraptionZoneData.k * (contraptionZoneData.RoomTemperature + 273)));
-        var exponent = Math.Exp(ContraptionZoneData.elCharge * contraptionZoneData.Voltage 
+        var exponent = Math.Exp(ContraptionZoneData.elCharge * contraptionZoneData.Voltage
             / (ContraptionZoneData.k * (contraptionZoneData.RoomTemperature + 273)));
         var amperageNew = mn * 10e2 * (exponent - 1);
-        if (!contraptionZoneData.IsSystemOn || contraptionZoneData.IsReverse)
+        if (!contraptionZoneData.IsSystemOn || contraptionZoneData.currentConnection == CircuitType.Reverse)
             amperageNew = 0.0;
         contraptionZoneData.Amperage = amperageNew;
         amperageText.text = NormaliseValue((float)System.Math.Round(amperageNew, 2), 2);
@@ -86,15 +117,18 @@ public class AppScript : MonoBehaviour
         // Get reverse amperage text component
         var revAmperageText = revAmperageField.GetChild(1).GetComponent<TextMeshProUGUI>();
         // Calculate lamp amperage value based on the formula
-        var mn = Math.Exp((-1 * contraptionZoneData.PermZone * ContraptionZoneData.elCharge) 
+        var mn = Math.Exp((-1 * contraptionZoneData.PermZone * ContraptionZoneData.elCharge)
             / (ContraptionZoneData.k * (contraptionZoneData.RoomTemperature + 273)));
-        var exponent = Math.Exp(1 * ContraptionZoneData.elCharge * contraptionZoneData.Voltage 
+        var exponent = Math.Exp(1 * ContraptionZoneData.elCharge * contraptionZoneData.Voltage
             / (ContraptionZoneData.k * (contraptionZoneData.RoomTemperature + 273)));
         var revAmperageNew = mn * 10e5 * (exponent - 1) + random.NextDouble() / 10;
-        if (!contraptionZoneData.IsSystemOn || !contraptionZoneData.IsReverse)
+        if (!contraptionZoneData.IsSystemOn || contraptionZoneData.currentConnection == CircuitType.Forward)
             revAmperageNew = 0.0;
         contraptionZoneData.RevAmperage = revAmperageNew;
         revAmperageText.text = NormaliseValue((float)System.Math.Round(revAmperageNew, 2), 2);
+        resultPage.transform.GetChild(2).GetChild(1).GetComponent<TextMeshProUGUI>().text =
+            NormaliseValue((float)System.Math.Round(revAmperageNew, 2), 2);
+
     }
 
     public void AddData()
@@ -103,7 +137,7 @@ public class AppScript : MonoBehaviour
         var voltageText = voltageField.GetChild(1).GetComponent<TextMeshProUGUI>();
         var voltageValue = float.Parse(voltageText.text);
         var amperageField = transform.GetChild(1).GetChild(1);
-        if (contraptionZoneData.IsReverse)
+        if (contraptionZoneData.currentConnection == CircuitType.Reverse)
             amperageField = transform.GetChild(1).GetChild(2);
         var amperageText = amperageField.GetChild(1).GetComponent<TextMeshProUGUI>();
         var currentLampAmperage = float.Parse(amperageText.text);
@@ -111,6 +145,11 @@ public class AppScript : MonoBehaviour
         if (savedVoltages.Contains(System.Math.Round(voltageValue, 3)) || !contraptionZoneData.IsSystemOn) return;
         savedVoltages.Add(System.Math.Round(voltageValue, 3));
         graphCreatorScript.AddAmperageLine(voltageValue, currentLampAmperage);
+    }
+
+    public void AddSecondData()
+    {
+
     }
 
     public void ShowResultPage()
@@ -133,46 +172,28 @@ public class AppScript : MonoBehaviour
         if (!resultPage.activeSelf)
             return;
         // Get input fields for charge and power
-        var chargeInputField = resultPage.transform.GetChild(3).transform.GetChild(2).GetComponent<TMP_InputField>();
-        var powerInputField = resultPage.transform.GetChild(3).transform.GetChild(3).GetComponent<TMP_InputField>();
+        var tempInputField = resultPage.transform.GetChild(0).GetChild(2).GetComponent<TMP_InputField>();
         // Check charge input if text field is not empty
-        if (chargeInputField.text != "")
+        if (tempInputField.text != "")
         {
             // Get new charge input value and check if it can be parsed to float
-            if (!float.TryParse(chargeInputField.text.Replace('.', ','), out var newChargeInput))
+            if (!float.TryParse(tempInputField.text.Replace('.', ','), out var newTempInput))
                 return;
             // Check if input has changed significantly
-            if (System.Math.Abs(newChargeInput - chargeInput) > 0.01)
+            if (System.Math.Abs(newTempInput - tempInput) > 0.01)
             {
-                chargeInput = newChargeInput;
+                tempInput = newTempInput;
                 // Check if input is within 5% of expected value and update color accordingly
-                if (chargeInput >= 1.69 && chargeInput <= 1.81)
+                if (System.Math.Abs(tempInput - contraptionZoneData.RoomTemperature) < 0.2)
                 {
-                    chargeInputField.textComponent.color = Color.green;
-                    IsChargeCorrect = true;
+                    //tempInputField.textComponent.color = Color.green;
+                    IsTempCorrect = true;
                 }
                 else
-                    chargeInputField.textComponent.color = Color.black;
-            }
-        }
-        // Check power input if text field is not empty
-        if (powerInputField.text != "")
-        {
-            // Get new power input value and check if it can be parsed to int
-            if (!int.TryParse(powerInputField.text, out var newPowerInput))
-                return;
-            // Check if input has changed significantly
-            if (System.Math.Abs(newPowerInput - powerInput) > 0.01)
-            {
-                powerInput = newPowerInput;
-                // Check if input is correct and update color accordingly
-                if (powerInput == 11)
                 {
-                    powerInputField.textComponent.color = Color.green;
-                    IsSpeedCorrect = true;
+                    //tempInputField.textComponent.color = Color.black;
+                    IsTempCorrect = false;
                 }
-                else
-                    powerInputField.textComponent.color = Color.black;
             }
         }
     }
